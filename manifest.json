@@ -1,0 +1,52 @@
+{
+  "manifest_version": 3,
+  "name": "YouTube Memory Engine",
+  "version": "1.0.0",
+  "description": "Tracks what you watch on YouTube and builds your personal knowledge library.",
+
+  "permissions": [
+    "storage",
+    "tabs",
+    "activeTab"
+  ],
+
+  "host_permissions": [
+    "*://*.youtube.com/*"
+  ],
+
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+
+  "content_scripts": [
+    {
+      "matches": ["*://*.youtube.com/*"],
+      "js": ["content_script.js"],
+      "run_at": "document_idle"
+    }
+  ],
+
+  "action": {
+    "default_popup": "popup/index.html",
+    "default_title": "YouTube Memory Engine",
+    "default_icon": {
+      "128": "icons/icon128.png"
+    }
+  },
+
+  "icons": {
+    "128": "icons/icon128.png"
+  },
+
+  "content_security_policy": {
+    "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self'"
+  },
+
+  "web_accessible_resources": [
+    {
+      "resources": ["library/index.html", "library/library.js", "library/library.css", "graph/index.html", "graph/graph.js", "lib/*"],
+      "matches": ["<all_urls>"]
+    }
+  ]
+}

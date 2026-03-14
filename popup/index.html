@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>YouTube Memory Engine</title>
+  <link rel="stylesheet" href="popup.css" />
+</head>
+<body>
+  <div id="app">
+
+    <header>
+      <div class="logo">
+        <span class="logo-icon">🧠</span>
+        <span class="logo-text">Memory Engine</span>
+      </div>
+      <button id="btn-library" class="btn-library">📚 Library</button>
+    </header>
+
+    <!-- Not on a YouTube video -->
+    <div id="state-no-video" class="state hidden">
+      <div class="empty-icon">📺</div>
+      <p class="empty-msg">Open a YouTube video<br>to start tracking.</p>
+    </div>
+
+    <!-- On a YouTube video -->
+    <div id="state-video" class="state hidden">
+      <div class="video-meta">
+        <div class="video-title" id="video-title">Loading...</div>
+        <div class="video-stats">
+          <span class="stat">
+            <span class="stat-label">Watched</span>
+            <span class="stat-value" id="total-watched">0s</span>
+          </span>
+          <span class="stat">
+            <span class="stat-label">Segments</span>
+            <span class="stat-value" id="segment-count">0</span>
+          </span>
+        </div>
+      </div>
+
+      <div class="section-label">Watched Segments</div>
+      <div id="segments-list" class="segments-list">
+        <div class="no-segments">No segments tracked yet.<br>Press play to begin.</div>
+      </div>
+
+      <div class="actions">
+        <button id="btn-refresh" class="btn btn-secondary">↻ Refresh</button>
+        <button id="btn-clear" class="btn btn-danger">Clear Session</button>
+      </div>
+    </div>
+
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>

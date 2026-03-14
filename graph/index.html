@@ -1,0 +1,627 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Memory Network — YouTube Memory Engine</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: #030308;
+      color: #fff;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      overflow: hidden;
+      width: 100vw;
+      height: 100vh;
+    }
+
+    /* ── Canvases ─────────────────────────────── */
+
+    #bg-canvas, #canvas {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100vw;
+      height: 100vh;
+      display: block;
+    }
+
+    #bg-canvas { z-index: 0; }
+    #canvas    { z-index: 1; cursor: grab; }
+    #canvas.dragging { cursor: grabbing; }
+
+    /* ── Glassmorphism base ────────────────────── */
+
+    .glass {
+      background: rgba(12, 12, 20, 0.55);
+      backdrop-filter: blur(24px) saturate(1.4);
+      -webkit-backdrop-filter: blur(24px) saturate(1.4);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      box-shadow:
+        0 8px 32px rgba(0, 0, 0, 0.5),
+        inset 0 1px 0 rgba(255, 255, 255, 0.04);
+    }
+
+    /* ── Header ───────────────────────────────── */
+
+    #header {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      padding: 0 28px;
+      height: 64px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      z-index: 10;
+      pointer-events: none;
+      background: linear-gradient(180deg, rgba(3,3,8,0.85) 0%, rgba(3,3,8,0.4) 70%, transparent 100%);
+    }
+
+    #header-left { display: flex; align-items: center; gap: 14px; }
+
+    #logo-orb {
+      width: 34px; height: 34px;
+      border-radius: 50%;
+      background: radial-gradient(circle at 35% 35%, #7ab8ff, #4e6fff 50%, #2a1aff 100%);
+      box-shadow: 0 0 18px rgba(78, 159, 255, 0.35), 0 0 4px rgba(78, 159, 255, 0.6);
+      animation: orbPulse 3s ease-in-out infinite;
+    }
+
+    @keyframes orbPulse {
+      0%, 100% { box-shadow: 0 0 18px rgba(78, 159, 255, 0.35), 0 0 4px rgba(78, 159, 255, 0.6); transform: scale(1); }
+      50%      { box-shadow: 0 0 28px rgba(78, 159, 255, 0.5), 0 0 6px rgba(78, 159, 255, 0.8); transform: scale(1.06); }
+    }
+
+    #title {
+      font-size: 16px;
+      font-weight: 700;
+      letter-spacing: -0.3px;
+      background: linear-gradient(135deg, #fff 0%, #7ab8ff 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    #subtitle {
+      font-size: 10.5px;
+      font-weight: 400;
+      color: rgba(255,255,255,0.28);
+      margin-top: 1px;
+      letter-spacing: 0.3px;
+    }
+
+    #header-right {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .stat-chip {
+      display: flex;
+      align-items: baseline;
+      gap: 5px;
+      padding: 6px 14px;
+      border-radius: 100px;
+      pointer-events: auto;
+    }
+
+    .stat-chip .val {
+      font-size: 17px;
+      font-weight: 800;
+      font-variant-numeric: tabular-nums;
+      background: linear-gradient(135deg, #fff, #7ab8ff);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .stat-chip .lbl {
+      font-size: 10px;
+      font-weight: 500;
+      color: rgba(255,255,255,0.3);
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+    }
+
+    /* ── Tooltip ───────────────────────────────── */
+
+    #tooltip {
+      position: fixed;
+      display: none;
+      border-radius: 16px;
+      padding: 16px 18px;
+      max-width: 260px;
+      min-width: 200px;
+      pointer-events: none;
+      z-index: 100;
+      transform: translateY(0);
+      transition: opacity 0.15s ease, transform 0.15s ease;
+    }
+
+    #tooltip.visible {
+      display: block;
+      animation: ttIn 0.2s ease-out;
+    }
+
+    @keyframes ttIn {
+      from { opacity: 0; transform: translateY(6px) scale(0.96); }
+      to   { opacity: 1; transform: translateY(0) scale(1); }
+    }
+
+    #tooltip::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 3px;
+      border-radius: 16px 16px 0 0;
+      background: linear-gradient(90deg, var(--tt-color, #4e9fff), transparent);
+    }
+
+    #tooltip-title {
+      font-size: 13px;
+      font-weight: 700;
+      color: #fff;
+      margin-bottom: 3px;
+      line-height: 1.45;
+      letter-spacing: -0.2px;
+    }
+
+    #tooltip-channel {
+      font-size: 10.5px;
+      color: rgba(255,255,255,0.35);
+      margin-bottom: 10px;
+      font-weight: 500;
+    }
+
+    #tooltip-meta {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 10px;
+    }
+
+    .tooltip-stat {
+      font-size: 10px;
+      color: rgba(255,255,255,0.4);
+      font-weight: 500;
+    }
+
+    .tooltip-stat span {
+      color: #fff;
+      font-weight: 700;
+    }
+
+    #tooltip-keywords {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+      margin-bottom: 10px;
+    }
+
+    .kw {
+      font-size: 9.5px;
+      font-weight: 600;
+      background: rgba(78, 159, 255, 0.1);
+      color: #7ab8ff;
+      border: 1px solid rgba(78, 159, 255, 0.15);
+      border-radius: 6px;
+      padding: 2px 7px;
+      letter-spacing: 0.2px;
+    }
+
+    #tooltip-link {
+      font-size: 10.5px;
+      font-weight: 600;
+      color: rgba(255,255,255,0.35);
+      text-decoration: none;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      pointer-events: all;
+      transition: color 0.15s;
+    }
+
+    #tooltip-link:hover { color: #fff; }
+
+    #tooltip-link .arrow {
+      font-size: 13px;
+      transition: transform 0.15s;
+    }
+
+    #tooltip-link:hover .arrow { transform: translateX(2px); }
+
+    /* ── Legend ────────────────────────────────── */
+
+    #legend {
+      position: fixed;
+      bottom: 28px;
+      left: 28px;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      z-index: 10;
+      border-radius: 14px;
+      padding: 12px 16px;
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      font-size: 11px;
+      font-weight: 500;
+      color: rgba(255,255,255,0.4);
+      padding: 3px 0;
+    }
+
+    .legend-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    /* ── Controls ──────────────────────────────── */
+
+    #controls {
+      position: fixed;
+      bottom: 28px;
+      right: 28px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      z-index: 10;
+    }
+
+    .ctrl-btn {
+      width: 40px;
+      height: 40px;
+      border-radius: 12px;
+      border: none;
+      color: rgba(255,255,255,0.45);
+      font-size: 17px;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s ease;
+      pointer-events: auto;
+    }
+
+    .ctrl-btn:hover {
+      color: #fff;
+      background: rgba(78, 159, 255, 0.12);
+      border-color: rgba(78, 159, 255, 0.2);
+      box-shadow: 0 0 16px rgba(78, 159, 255, 0.12);
+    }
+
+    .ctrl-btn:active { transform: scale(0.92); }
+
+    .ctrl-btn svg {
+      width: 18px;
+      height: 18px;
+      stroke: currentColor;
+      fill: none;
+      stroke-width: 2;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
+    /* ── Loading ───────────────────────────────── */
+
+    #loading {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 20px;
+      z-index: 50;
+      transition: opacity 0.6s ease;
+    }
+
+    #loading.hide {
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .loader-ring {
+      width: 64px; height: 64px;
+      border: 3px solid rgba(78, 159, 255, 0.15);
+      border-top: 3px solid #4e9fff;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      position: relative;
+      box-shadow: 0 0 20px rgba(78, 159, 255, 0.15);
+    }
+
+    .loader-ring::after {
+      content: '';
+      position: absolute;
+      top: 6px; left: 6px; right: 6px; bottom: 6px;
+      border: 2px solid rgba(78, 159, 255, 0.08);
+      border-bottom: 2px solid rgba(78, 159, 255, 0.5);
+      border-radius: 50%;
+      animation: spin 1.8s linear reverse infinite;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .loader-text {
+      font-size: 14px;
+      font-weight: 500;
+      color: rgba(255,255,255,0.55);
+      letter-spacing: 0.5px;
+    }
+
+    /* ── Empty state ───────────────────────────── */
+
+    #empty {
+      display: none;
+      position: fixed;
+      inset: 0;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      gap: 16px;
+      z-index: 50;
+    }
+
+    #empty.show { display: flex; }
+    #empty-icon { font-size: 56px; }
+    #empty-title { font-size: 20px; font-weight: 700; color: rgba(255,255,255,0.8); letter-spacing: -0.3px; }
+    #empty-sub { font-size: 13px; color: rgba(255,255,255,0.4); text-align: center; line-height: 1.6; }
+
+    /* ── Selection info panel ──────────────────── */
+
+    #info-panel {
+      position: fixed;
+      top: 80px;
+      right: 28px;
+      width: 280px;
+      border-radius: 18px;
+      padding: 20px;
+      z-index: 10;
+      display: none;
+      animation: panelIn 0.3s ease-out;
+    }
+
+    #info-panel.visible { display: block; }
+
+    @keyframes panelIn {
+      from { opacity: 0; transform: translateX(12px); }
+      to   { opacity: 1; transform: translateX(0); }
+    }
+
+    #info-panel-close {
+      position: absolute;
+      top: 12px; right: 14px;
+      width: 24px; height: 24px;
+      border-radius: 50%;
+      border: none;
+      background: rgba(255,255,255,0.06);
+      color: rgba(255,255,255,0.4);
+      font-size: 14px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.15s;
+      pointer-events: auto;
+    }
+
+    #info-panel-close:hover { background: rgba(255,255,255,0.1); color: #fff; }
+
+    .info-title {
+      font-size: 14px;
+      font-weight: 700;
+      color: #fff;
+      margin-bottom: 4px;
+      line-height: 1.4;
+      padding-right: 28px;
+    }
+
+    .info-channel {
+      font-size: 11px;
+      color: rgba(255,255,255,0.3);
+      margin-bottom: 14px;
+      font-weight: 500;
+    }
+
+    .info-section-label {
+      font-size: 9px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1.2px;
+      color: rgba(255,255,255,0.2);
+      margin-bottom: 6px;
+      margin-top: 14px;
+    }
+
+    .info-stat-row {
+      display: flex;
+      gap: 16px;
+      margin-bottom: 4px;
+    }
+
+    .info-stat {
+      font-size: 11px;
+      color: rgba(255,255,255,0.4);
+    }
+
+    .info-stat strong {
+      color: #fff;
+      font-weight: 700;
+    }
+
+    .info-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+    }
+
+    .info-tag {
+      font-size: 10px;
+      font-weight: 600;
+      padding: 3px 8px;
+      border-radius: 6px;
+      background: rgba(78, 159, 255, 0.1);
+      color: #7ab8ff;
+      border: 1px solid rgba(78, 159, 255, 0.12);
+    }
+
+    .info-tag.entity {
+      background: rgba(78, 204, 145, 0.1);
+      color: #4ecc91;
+      border-color: rgba(78, 204, 145, 0.12);
+    }
+
+    .info-connections {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .info-conn {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .info-conn-bar {
+      width: 40px;
+      height: 3px;
+      border-radius: 2px;
+      background: rgba(255,255,255,0.08);
+      overflow: hidden;
+    }
+
+    .info-conn-bar-fill {
+      height: 100%;
+      border-radius: 2px;
+      background: linear-gradient(90deg, #4e9fff, #4ecc91);
+    }
+
+    .info-conn-name {
+      font-size: 10.5px;
+      color: rgba(255,255,255,0.45);
+      font-weight: 500;
+      flex: 1;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .info-conn-pct {
+      font-size: 10px;
+      font-weight: 700;
+      color: rgba(255,255,255,0.3);
+      flex-shrink: 0;
+    }
+
+    .info-open-btn {
+      display: block;
+      width: 100%;
+      margin-top: 16px;
+      padding: 9px 0;
+      border-radius: 10px;
+      border: 1px solid rgba(78, 159, 255, 0.2);
+      background: rgba(78, 159, 255, 0.08);
+      color: #7ab8ff;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      text-align: center;
+      text-decoration: none;
+      transition: all 0.15s;
+      pointer-events: auto;
+    }
+
+    .info-open-btn:hover {
+      background: rgba(78, 159, 255, 0.15);
+      border-color: rgba(78, 159, 255, 0.35);
+    }
+  </style>
+</head>
+<body>
+
+<canvas id="bg-canvas"></canvas>
+<canvas id="canvas"></canvas>
+
+<!-- Loading -->
+<div id="loading">
+  <div class="loader-ring"></div>
+  <div class="loader-text">Mapping your neural network...</div>
+</div>
+
+<!-- Header -->
+<div id="header">
+  <div id="header-left">
+    <div id="logo-orb"></div>
+    <div>
+      <div id="title">Memory Network</div>
+      <div id="subtitle">Drag to orbit &middot; Scroll to zoom &middot; Click to inspect</div>
+    </div>
+  </div>
+  <div id="header-right">
+    <div class="stat-chip glass">
+      <span class="val" id="stat-nodes">0</span>
+      <span class="lbl">memories</span>
+    </div>
+    <div class="stat-chip glass">
+      <span class="val" id="stat-edges">0</span>
+      <span class="lbl">synapses</span>
+    </div>
+  </div>
+</div>
+
+<!-- Tooltip -->
+<div id="tooltip" class="glass">
+  <div id="tooltip-title"></div>
+  <div id="tooltip-channel"></div>
+  <div id="tooltip-meta"></div>
+  <div id="tooltip-keywords"></div>
+  <a id="tooltip-link" target="_blank" rel="noopener">Watch again <span class="arrow">&rsaquo;</span></a>
+</div>
+
+<!-- Legend -->
+<div id="legend" class="glass"></div>
+
+<!-- Controls -->
+<div id="controls">
+  <button class="ctrl-btn glass" id="btn-zoom-in" title="Zoom in">
+    <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+  </button>
+  <button class="ctrl-btn glass" id="btn-zoom-out" title="Zoom out">
+    <svg viewBox="0 0 24 24"><line x1="5" y1="12" x2="19" y2="12"/></svg>
+  </button>
+  <button class="ctrl-btn glass" id="btn-reset" title="Reset view">
+    <svg viewBox="0 0 24 24"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
+  </button>
+  <button class="ctrl-btn glass" id="btn-library" title="Back to Library">
+    <svg viewBox="0 0 24 24"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+  </button>
+</div>
+
+<!-- Info Panel (click to inspect) -->
+<div id="info-panel" class="glass">
+  <button id="info-panel-close">&times;</button>
+  <div class="info-title" id="info-title"></div>
+  <div class="info-channel" id="info-channel"></div>
+  <div class="info-section-label">Stats</div>
+  <div class="info-stat-row" id="info-stats"></div>
+  <div class="info-section-label">Concepts</div>
+  <div class="info-tags" id="info-tags"></div>
+  <div class="info-section-label">Connected Memories</div>
+  <div class="info-connections" id="info-connections"></div>
+  <a class="info-open-btn" id="info-open" target="_blank" rel="noopener">Open on YouTube</a>
+</div>
+
+<!-- Empty -->
+<div id="empty">
+  <div id="empty-icon">&#x1F578;</div>
+  <div id="empty-title">No memories yet</div>
+  <div id="empty-sub">Watch some YouTube videos with tracking enabled<br>to build your memory network.</div>
+</div>
+
+<script src="graph.js"></script>
+</body>
+</html>

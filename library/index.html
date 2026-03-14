@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>YouTube Memory Library</title>
+  <link rel="stylesheet" href="library.css" />
+</head>
+<body>
+  <div id="app">
+    <header>
+      <div class="header-inner">
+        <div class="logo">
+          <span class="logo-icon">🧠</span>
+          <div>
+            <div class="logo-title">Memory Library</div>
+            <div class="logo-sub">YouTube Knowledge Engine</div>
+          </div>
+        </div>
+        <div class="header-stats">
+          <div class="stat-pill">
+            <span id="total-videos">0</span>
+            <span class="stat-label">videos</span>
+          </div>
+          <div class="stat-pill">
+            <span id="total-time">0s</span>
+            <span class="stat-label">watched</span>
+          </div>
+          <button id="btn-graph" class="btn-graph">🕸 Memory Network</button>
+          <button id="btn-clear" class="btn-danger">Clear Library</button>
+        </div>
+      </div>
+    </header>
+
+    <main id="library-content">
+      <div id="empty-state" class="empty-state hidden">
+        <div class="empty-icon">📚</div>
+        <div class="empty-title">Your library is empty</div>
+        <div class="empty-sub">Start tracking videos on YouTube to build your library.</div>
+      </div>
+    </main>
+  </div>
+
+  <script src="library.js"></script>
+</body>
+</html>
