@@ -1,4 +1,4 @@
-# YouTube Memory Engine
+# RecallAI
 
 A Chrome extension that transforms your YouTube watch history into a **semantic memory network**. It captures live captions, processes them with local NLP, extracts keywords and entities, computes embeddings for semantic similarity, and visualizes your knowledge as an interactive 3D neuron graph.
 
@@ -64,7 +64,7 @@ A Chrome extension that transforms your YouTube watch history into a **semantic 
 ## Project Structure
 
 ```
-youtube-memory-engine/
+RecallAI/
 ├── manifest.json          # Chrome Extension config (MV3)
 ├── background.js          # Service worker: storage, NLP, embeddings, edges
 ├── content_script.js      # YouTube DOM: captions, segments, metadata
@@ -90,7 +90,7 @@ youtube-memory-engine/
 
 1. Clone this repository:
    ```bash
-   git clone https://github.com/YOUR_USERNAME/youtube-memory-engine.git
+   git clone https://github.com/KPandya1903/RecallAI.git
    ```
 
 2. Open Chrome and navigate to `chrome://extensions/`
